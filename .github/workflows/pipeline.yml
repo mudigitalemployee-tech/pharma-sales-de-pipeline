@@ -1,0 +1,43 @@
+name: pharma-sales-de-pipeline CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 6 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      DQ_THRESHOLD: '0'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install pandas numpy flake8
+
+      - name: Lint check
+        run: flake8 pipeline/airflow_dag.py --max-line-length=120 || echo "Lint warnings noted"
+
+      - name: Validate data
+        run: |
+          python3 << 'EOF'
+import pandas as pd
+import sys
+
+df = pd.read_csv('data/transformed_data.csv')
+print(f"Rows: {len(df)} | Cols: {len(df.columns)}")
+assert len(df) > 0, "Empty dataset"
+print("Validation passed")
+EOF
